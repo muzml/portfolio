@@ -974,6 +974,11 @@ renderer.setAnimationLoop(()=>{
   const c=document.getElementById('skillc');
   if(!c)return;
   const ctx=c.getContext('2d');
+  let isVisible = false;
+  const obs = new IntersectionObserver(entries => {
+    isVisible = entries[0].isIntersecting;
+  }, { threshold: 0 });
+  obs.observe(c);
   const skills=[
     {n:'Python',      c:'#4FC3F7',lvl:90,d:'5+ years. AI/ML, data science, automation, scripting. Primary daily driver.'},
     {n:'JavaScript',  c:'#F7DC6F',lvl:85,d:'Advanced ES2023+. Async patterns, bundlers, performance optimization.'},
@@ -1033,6 +1038,8 @@ renderer.setAnimationLoop(()=>{
 
   const t0=performance.now();
   function draw(){
+    requestAnimationFrame(draw);
+    if(!isVisible) return;
     ctx.clearRect(0,0,W,H);
     const t=(performance.now()-t0)/1000;
     rY+=(tY-rY)*.055;rX+=(tX-rX)*.055;
@@ -1057,7 +1064,6 @@ renderer.setAnimationLoop(()=>{
       ctx.fillStyle=n.c;ctx.fillText(n.n,p.x,p.y);
       ctx.restore();
     });
-    requestAnimationFrame(draw);
   }
   draw();
 })();
@@ -1068,6 +1074,11 @@ renderer.setAnimationLoop(()=>{
 (function(){
   const c=document.getElementById('cvc');if(!c)return;
   const ctx=c.getContext('2d');let W=0,H=0;
+  let isVisible = false;
+  const obs = new IntersectionObserver(entries => {
+    isVisible = entries[0].isIntersecting;
+  }, { threshold: 0 });
+  obs.observe(c);
   function resize(){
     W=c.offsetWidth||innerWidth;H=c.offsetHeight||innerHeight;
     c.width=W*devicePixelRatio;c.height=H*devicePixelRatio;
@@ -1080,6 +1091,8 @@ renderer.setAnimationLoop(()=>{
   c.addEventListener('mouseenter',()=>hov=true);c.addEventListener('mouseleave',()=>hov=false);
   const t0=performance.now();
   function draw(){
+    requestAnimationFrame(draw);
+    if(!isVisible) return;
     const t=(performance.now()-t0)/1000;
     ctx.clearRect(0,0,W,H);
     const cx=W/2,cy=H/2,hm=hov?1.4:1;
@@ -1117,7 +1130,6 @@ renderer.setAnimationLoop(()=>{
     });
     // Hover ripples
     if(hov){for(let i=0;i<3;i++){const wr=(t*68+i*62)%200;ctx.save();ctx.globalAlpha=Math.max(0,(1-wr/200)*.32);ctx.strokeStyle='rgba(100,180,255,.8)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx,cy,wr,0,Math.PI*2);ctx.stroke();ctx.restore()}}
-    requestAnimationFrame(draw);
   }
   draw();
 })();
@@ -1257,8 +1269,8 @@ addEventListener('resize',()=>{
   // ── Filament definition ──
   // Each filament is a particle stream that orbits the ring
   // and oscillates radially to create the wavy organic look
-  const NUM_FILAMENTS = 220;
-  const PTS_PER_FIL   = 90;
+  const NUM_FILAMENTS = 80;
+  const PTS_PER_FIL   = 45;
 
   const filaments = [];
   for (let f = 0; f < NUM_FILAMENTS; f++) {
@@ -1407,6 +1419,7 @@ addEventListener('resize',()=>{
   }
 
   let last = 0;
+  let wasCleared = false;
   function draw(ts) {
     const dt = Math.min((ts - last) / 1000, 0.05);
     last = ts;
@@ -1418,23 +1431,31 @@ addEventListener('resize',()=>{
     // Scroll-driven morph progress (0 = full ring/hero, 1 = fully transitioned to DNA)
     const morphP = (typeof window._morphP === 'number') ? window._morphP : 0;
 
+    if (heroOpacity <= 0.01) {
+      if (!wasCleared) {
+        ctx.clearRect(0, 0, W, H);
+        wasCleared = true;
+      }
+      requestAnimationFrame(draw);
+      return;
+    }
+    wasCleared = false;
+
     ctx.clearRect(0, 0, W, H);
 
-    if (heroOpacity > 0.01) {
-      ctx.save();
-      // Camera "flying through the portal": scale up and stretch vertically as user scrolls
-      const zoomScale   = 1 + morphP * 2.4;          // grows larger — feels like moving through it
-      const stretchY    = 1 + morphP * 1.7;          // vertical stretch toward DNA silhouette
-      ctx.translate(cx, cy);
-      ctx.scale(zoomScale, zoomScale * stretchY);
-      ctx.translate(-cx, -cy);
+    ctx.save();
+    // Camera "flying through the portal": scale up and stretch vertically as user scrolls
+    const zoomScale   = 1 + morphP * 2.4;          // grows larger — feels like moving through it
+    const stretchY    = 1 + morphP * 1.7;          // vertical stretch toward DNA silhouette
+    ctx.translate(cx, cy);
+    ctx.scale(zoomScale, zoomScale * stretchY);
+    ctx.translate(-cx, -cy);
 
-      drawGlow();
-      ctx.globalCompositeOperation = 'screen';
-      for (const fil of filaments) drawFilament(fil, t);
-      drawSparks(t);
-      ctx.restore();
-    }
+    drawGlow();
+    ctx.globalCompositeOperation = 'screen';
+    for (const fil of filaments) drawFilament(fil, t);
+    drawSparks(t);
+    ctx.restore();
 
     requestAnimationFrame(draw);
   }
