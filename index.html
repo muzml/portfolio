@@ -593,7 +593,7 @@ sw.addEventListener('scroll',()=>{
   window._heroToAboutP = Math.max(0, Math.min(1, sw.scrollTop / innerHeight));
   // Continuous progress for About→Projects morph (section 1 to 2): 0 = full DNA, 1 = gone
   window._aboutToProjP = Math.max(0, Math.min(1, (sw.scrollTop / innerHeight) - 1));
-  // Continuous progress for About→Projects Wave emerge morph (section 1 to 2): 0 = blank, 1 = full wave
+  // Continuous progress for Projects→Wave morph (section 2 to 3): 0 = blank, 1 = full wave
   window._projToWaveP = Math.max(0, Math.min(1, (sw.scrollTop / innerHeight) - 1));
 },{passive:true});
 function onSec(i){
@@ -752,7 +752,7 @@ const dna=mkDNA();scene.add(dna);
 
 // ── WAVE TERRAIN — Red/blue energy landscape ──
 // Matches image 5: glowing wave surface with red on right, blue on left
-const WN=8000;
+const WN=9000;
 const wBase=new Float32Array(WN*3);
 function mkWave(){
   const g=new THREE.BufferGeometry();
@@ -822,9 +822,9 @@ const C={ring:0,dna:0,wave:0,gal:0,bh:0,amb:0,fl:0};
 function setTarget(sec){
   T.ring=0;T.dna=0;T.wave=0;T.gal=0;T.bh=0;T.amb=0;T.fl=0;
   if(sec===0){T.ring=1;T.amb=0.55;T.fl=0.65}
-  else if(sec===1){T.dna=1}
-  else if(sec===2){T.wave=1}
-  else if(sec===3){T.gal=1}
+  else if(sec===2){T.gal=1}
+  else if(sec===1){T.wave=1}
+  else if(sec===3){T.ring=0;T.amb=0;T.fl=0}
   else if(sec===4){T.wave=.28;T.gal=.06}
 }
 setTarget(0);
@@ -842,6 +842,7 @@ const camP=[
 function lerp(a,b,t){return a+(b-a)*t}
 
 const clk=new THREE.Clock();
+let frameSkip=0;
 renderer.setAnimationLoop(()=>{
   const t=clk.getElapsedTime();
   const sp=.038;
@@ -923,15 +924,16 @@ renderer.setAnimationLoop(()=>{
     }
   }
   // Wave — emerges from the Projects section: starts flat/tiny, grows into full terrain
-  if(C.wave>.003){
-    const wp=wave.geometry.attributes.position.array;
-    const t1 = t*.52;
-    const t2 = t*.36;
-    for(let i=0;i<WN;i++){
-      const bx=wBase[i*3],bz=wBase[i*3+2];
-      wp[i*3+1]=wBase[i*3+1]+Math.sin(bx*.42+t1)*Math.cos(bz*.35+t2)*.4;
+  if(C.wave>.01){
+    frameSkip=(frameSkip+1)%2;
+    if(frameSkip===0){
+      const wp=wave.geometry.attributes.position.array;
+      for(let i=0;i<WN;i++){
+        const bx=wBase[i*3],bz=wBase[i*3+2];
+        wp[i*3+1]=wBase[i*3+1]+Math.sin(bx*.42+t*.52)*Math.cos(bz*.35+t*.36)*.4;
+      }
+      wave.geometry.attributes.position.needsUpdate=true;
     }
-    wave.geometry.attributes.position.needsUpdate=true;
     wave.rotation.y=nmx*.055;
     if (cS===2) {
       const growT = Math.max(0, Math.min(1, projP));
@@ -976,11 +978,6 @@ renderer.setAnimationLoop(()=>{
   const c=document.getElementById('skillc');
   if(!c)return;
   const ctx=c.getContext('2d');
-  let isVisible = false;
-  const obs = new IntersectionObserver(entries => {
-    isVisible = entries[0].isIntersecting;
-  }, { threshold: 0 });
-  obs.observe(c);
   const skills=[
     {n:'Python',      c:'#4FC3F7',lvl:90,d:'5+ years. AI/ML, data science, automation, scripting. Primary daily driver.'},
     {n:'JavaScript',  c:'#F7DC6F',lvl:85,d:'Advanced ES2023+. Async patterns, bundlers, performance optimization.'},
@@ -1040,8 +1037,6 @@ renderer.setAnimationLoop(()=>{
 
   const t0=performance.now();
   function draw(){
-    requestAnimationFrame(draw);
-    if(!isVisible) return;
     ctx.clearRect(0,0,W,H);
     const t=(performance.now()-t0)/1000;
     rY+=(tY-rY)*.055;rX+=(tX-rX)*.055;
@@ -1066,6 +1061,7 @@ renderer.setAnimationLoop(()=>{
       ctx.fillStyle=n.c;ctx.fillText(n.n,p.x,p.y);
       ctx.restore();
     });
+    requestAnimationFrame(draw);
   }
   draw();
 })();
@@ -1076,11 +1072,6 @@ renderer.setAnimationLoop(()=>{
 (function(){
   const c=document.getElementById('cvc');if(!c)return;
   const ctx=c.getContext('2d');let W=0,H=0;
-  let isVisible = false;
-  const obs = new IntersectionObserver(entries => {
-    isVisible = entries[0].isIntersecting;
-  }, { threshold: 0 });
-  obs.observe(c);
   function resize(){
     W=c.offsetWidth||innerWidth;H=c.offsetHeight||innerHeight;
     c.width=W*devicePixelRatio;c.height=H*devicePixelRatio;
@@ -1093,8 +1084,6 @@ renderer.setAnimationLoop(()=>{
   c.addEventListener('mouseenter',()=>hov=true);c.addEventListener('mouseleave',()=>hov=false);
   const t0=performance.now();
   function draw(){
-    requestAnimationFrame(draw);
-    if(!isVisible) return;
     const t=(performance.now()-t0)/1000;
     ctx.clearRect(0,0,W,H);
     const cx=W/2,cy=H/2,hm=hov?1.4:1;
@@ -1132,6 +1121,7 @@ renderer.setAnimationLoop(()=>{
     });
     // Hover ripples
     if(hov){for(let i=0;i<3;i++){const wr=(t*68+i*62)%200;ctx.save();ctx.globalAlpha=Math.max(0,(1-wr/200)*.32);ctx.strokeStyle='rgba(100,180,255,.8)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx,cy,wr,0,Math.PI*2);ctx.stroke();ctx.restore()}}
+    requestAnimationFrame(draw);
   }
   draw();
 })();
@@ -1271,8 +1261,8 @@ addEventListener('resize',()=>{
   // ── Filament definition ──
   // Each filament is a particle stream that orbits the ring
   // and oscillates radially to create the wavy organic look
-  const NUM_FILAMENTS = 80;
-  const PTS_PER_FIL   = 45;
+  const NUM_FILAMENTS = 130;
+  const PTS_PER_FIL   = 50;
 
   const filaments = [];
   for (let f = 0; f < NUM_FILAMENTS; f++) {
@@ -1312,6 +1302,11 @@ addEventListener('resize',()=>{
     const mx_off = (mx - 0.5) * R * 0.06;
     const my_off = (my - 0.5) * R * 0.06;
 
+    // Bound the fills to a box around the ring instead of the full canvas —
+    // the gradients fall to transparent well before the viewport edges on most screens.
+    const half = R * 1.6;
+    const bx = cx - half, by = cy - half, bs = half * 2;
+
     // Red/orange — top-right quadrant
     const rg = ctx.createRadialGradient(
       cx + R * 0.62 + mx_off, cy - R * 0.50 + my_off, 0,
@@ -1322,7 +1317,7 @@ addEventListener('resize',()=>{
     rg.addColorStop(0.7, `rgba(180,20,60,${op * 0.1})`);
     rg.addColorStop(1,   'rgba(0,0,0,0)');
     ctx.fillStyle = rg;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(bx, by, bs, bs);
 
     // Blue/purple — bottom-left quadrant
     const bg = ctx.createRadialGradient(
@@ -1334,7 +1329,7 @@ addEventListener('resize',()=>{
     bg.addColorStop(0.7, `rgba(40,5,150,${op * 0.08})`);
     bg.addColorStop(1,   'rgba(0,0,0,0)');
     ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(bx, by, bs, bs);
 
     // Thin bright ring outline glow
     const ringGrad = ctx.createRadialGradient(cx, cy, R * 0.80, cx, cy, R * 1.18);
@@ -1343,7 +1338,7 @@ addEventListener('resize',()=>{
     ringGrad.addColorStop(0.6, `rgba(255,80,30,${op * 0.10})`);
     ringGrad.addColorStop(1,   'rgba(0,0,0,0)');
     ctx.fillStyle = ringGrad;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(bx, by, bs, bs);
   }
 
   // ── Draw one filament as a series of connected dots/line ──
@@ -1394,6 +1389,21 @@ addEventListener('resize',()=>{
     phase:  Math.random() * Math.PI * 2,
   }));
 
+  // Pre-render a single white spark-glow sprite once; sparks are tinted+scaled via drawImage
+  // (drawImage is far cheaper than creating a radial gradient per spark per frame)
+  const SPRITE_SIZE = 64;
+  const sparkSprite = document.createElement('canvas');
+  sparkSprite.width = sparkSprite.height = SPRITE_SIZE;
+  (function(){
+    const sctx = sparkSprite.getContext('2d');
+    const g = sctx.createRadialGradient(SPRITE_SIZE/2, SPRITE_SIZE/2, 0, SPRITE_SIZE/2, SPRITE_SIZE/2, SPRITE_SIZE/2);
+    g.addColorStop(0,   'rgba(255,255,255,1)');
+    g.addColorStop(0.4, 'rgba(255,255,255,0.35)');
+    g.addColorStop(1,   'rgba(255,255,255,0)');
+    sctx.fillStyle = g;
+    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+  })();
+
   function drawSparks(tNow) {
     for (const sp of sparks) {
       sp.angle += sp.speed * 0.016;
@@ -1402,16 +1412,11 @@ addEventListener('resize',()=>{
       const px    = cx + rad * Math.cos(sp.angle);
       const py    = cy + rad * Math.sin(sp.angle);
       const alpha = sp.alpha * heroOpacity * pulse;
-      const color = ringColor(sp.angle, alpha);
-      // Glow
-      const g = ctx.createRadialGradient(px, py, 0, px, py, sp.size * 4);
-      g.addColorStop(0,   color);
-      g.addColorStop(0.4, ringColor(sp.angle, alpha * 0.3));
-      g.addColorStop(1,   'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(px, py, sp.size * 4, 0, Math.PI * 2);
-      ctx.fill();
+      if (alpha <= 0.003) continue;
+      const glowSize = sp.size * 8;
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(sparkSprite, px - glowSize/2, py - glowSize/2, glowSize, glowSize);
+      ctx.globalAlpha = 1;
       // Bright core
       ctx.fillStyle = `rgba(255,255,255,${alpha * 0.9})`;
       ctx.beginPath();
@@ -1421,7 +1426,6 @@ addEventListener('resize',()=>{
   }
 
   let last = 0;
-  let wasCleared = false;
   function draw(ts) {
     const dt = Math.min((ts - last) / 1000, 0.05);
     last = ts;
@@ -1433,31 +1437,23 @@ addEventListener('resize',()=>{
     // Scroll-driven morph progress (0 = full ring/hero, 1 = fully transitioned to DNA)
     const morphP = (typeof window._morphP === 'number') ? window._morphP : 0;
 
-    if (heroOpacity <= 0.01) {
-      if (!wasCleared) {
-        ctx.clearRect(0, 0, W, H);
-        wasCleared = true;
-      }
-      requestAnimationFrame(draw);
-      return;
-    }
-    wasCleared = false;
-
     ctx.clearRect(0, 0, W, H);
 
-    ctx.save();
-    // Camera "flying through the portal": scale up and stretch vertically as user scrolls
-    const zoomScale   = 1 + morphP * 2.4;          // grows larger — feels like moving through it
-    const stretchY    = 1 + morphP * 1.7;          // vertical stretch toward DNA silhouette
-    ctx.translate(cx, cy);
-    ctx.scale(zoomScale, zoomScale * stretchY);
-    ctx.translate(-cx, -cy);
+    if (heroOpacity > 0.01) {
+      ctx.save();
+      // Camera "flying through the portal": scale up and stretch vertically as user scrolls
+      const zoomScale   = 1 + morphP * 2.4;          // grows larger — feels like moving through it
+      const stretchY    = 1 + morphP * 1.7;          // vertical stretch toward DNA silhouette
+      ctx.translate(cx, cy);
+      ctx.scale(zoomScale, zoomScale * stretchY);
+      ctx.translate(-cx, -cy);
 
-    drawGlow();
-    ctx.globalCompositeOperation = 'screen';
-    for (const fil of filaments) drawFilament(fil, t);
-    drawSparks(t);
-    ctx.restore();
+      drawGlow();
+      ctx.globalCompositeOperation = 'screen';
+      for (const fil of filaments) drawFilament(fil, t);
+      drawSparks(t);
+      ctx.restore();
+    }
 
     requestAnimationFrame(draw);
   }
