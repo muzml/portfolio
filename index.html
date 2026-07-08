@@ -283,6 +283,35 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
 .cfi:focus{border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.06)}
 .cfi::placeholder{color:rgba(255,255,255,.16)}
 
+.cf-status {
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 10px 14px;
+  border-radius: 8px;
+  display: none;
+  margin-top: 10px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+.cf-status.success {
+  display: block;
+  background: rgba(34, 221, 255, 0.08);
+  border: 1px solid rgba(34, 221, 255, 0.22);
+  color: var(--cyan);
+}
+.cf-status.error {
+  display: block;
+  background: rgba(255, 51, 34, 0.08);
+  border: 1px solid rgba(255, 51, 34, 0.22);
+  color: var(--red);
+}
+.cf-status.submitting {
+  display: block;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.6);
+}
+
 /* CONTACT VISUAL */
 .cvisual{display:flex;align-items:center;justify-content:center;height:100%;min-height:380px;position:relative}
 #cvc{width:100%;height:100%;position:absolute;inset:0}
@@ -523,15 +552,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);
           <a href="https://www.linkedin.com/in/muzml-latheef6666/" target="_blank" rel="noopener" class="soc" title="LinkedIn">in</a>
           <a href="mailto:muzamilbng@gmail.com" class="soc" title="Email">✉</a>
         </div>
-        <div class="cf">
+        <form class="cf" id="contact-form">
+          <input type="hidden" name="access_key" value="YOUR_ACCESS_KEY_HERE">
+          <input type="checkbox" name="botcheck" class="hidden" style="display: none;">
           <div class="cfrow">
-            <div class="cfg"><label class="cfl">Name</label><input class="cfi" type="text" placeholder="Your name"></div>
-            <div class="cfg"><label class="cfl">Email</label><input class="cfi" type="email" placeholder="your@email.com"></div>
+            <div class="cfg"><label class="cfl">Name</label><input class="cfi" type="text" name="name" placeholder="Your name" required></div>
+            <div class="cfg"><label class="cfl">Email</label><input class="cfi" type="email" name="email" placeholder="your@email.com" required></div>
           </div>
-          <div class="cfg"><label class="cfl">Subject</label><input class="cfi" type="text" placeholder="Project collaboration..."></div>
-          <div class="cfg"><label class="cfl">Message</label><textarea class="cfi" rows="4" placeholder="Tell me about your idea..."></textarea></div>
+          <div class="cfg"><label class="cfl">Subject</label><input class="cfi" type="text" name="subject" placeholder="Project collaboration..."></div>
+          <div class="cfg"><label class="cfl">Message</label><textarea class="cfi" name="message" rows="4" placeholder="Tell me about your idea..." required></textarea></div>
           <button class="btn btn-acc" style="cursor:none;justify-content:center;width:100%;padding:13px">Send Message <i class="bico">→</i></button>
-        </div>
+          <div class="cf-status" id="cf-status"></div>
+        </form>
       </div>
       <div class="cvisual rv"><!-- AI Core canvas fills here --></div>
     </div>
@@ -1221,6 +1253,60 @@ function oM(id){
 function cM(){document.getElementById('modal').classList.remove('on')}
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')cM()});
 addEventListener('keydown',e=>{if(e.key==='Escape')cM()});
+
+// ═══════════════════════════════════════════
+// CONTACT FORM SUBMISSION
+// ═══════════════════════════════════════════
+const contactForm = document.getElementById('contact-form');
+const formStatus = document.getElementById('cf-status');
+
+if (contactForm && formStatus) {
+  contactForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Set status to submitting
+    formStatus.textContent = "Sending message...";
+    formStatus.className = "cf-status submitting";
+    formStatus.style.opacity = '1';
+    
+    const formData = new FormData(contactForm);
+    const object = Object.fromEntries(formData);
+    const json = JSON.stringify(object);
+    
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: json
+    })
+    .then(async (response) => {
+      let jsonResponse = await response.json();
+      if (response.status == 200) {
+        formStatus.textContent = "Message sent successfully!";
+        formStatus.className = "cf-status success";
+        contactForm.reset();
+        setTimeout(() => {
+          formStatus.style.opacity = '0';
+          setTimeout(() => {
+            formStatus.className = "cf-status";
+            formStatus.style.opacity = '1';
+          }, 300);
+        }, 5000);
+      } else {
+        console.log(response);
+        formStatus.textContent = jsonResponse.message || "Something went wrong. Please try again.";
+        formStatus.className = "cf-status error";
+      }
+    })
+    .catch(error => {
+      console.log(error);
+      formStatus.textContent = "Network error. Please check your connection.";
+      formStatus.className = "cf-status error";
+    });
+  });
+}
 
 // ═══════════════════════════════════════════
 // RESIZE
